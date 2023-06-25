@@ -71,7 +71,7 @@ func handleGetRequest(rw http.ResponseWriter, r *http.Request) {
 		return
   }
 
-rw.Header().Set("Content-Type", "application/json")
+	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	rw.Write(jsonData)
 
