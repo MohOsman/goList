@@ -3,26 +3,40 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"strconv"
-
-	"github.com/gorilla/mux"
 )
 
 var tasks []Task
 var currentTaskID = 1 // Variable to track the current task ID
 
 func main() {
-	myRouter := mux.NewRouter().StrictSlash(true)
+	myRouter := mux.NewRouter()
 
-	myRouter.HandleFunc("/task", handlePostRequest).Methods("POST")
+	myRouter.HandleFunc("/tasks", handlePostRequest).Methods("POST")
 	myRouter.HandleFunc("/tasks/{id}", handleGetRequest).Methods("GET")
 	myRouter.HandleFunc("/tasks", handleGetTasksRequest).Methods("GET")
 	myRouter.HandleFunc("/tasks/{id}", handleUpdateRequest).Methods("PUT")
 	myRouter.HandleFunc("/tasks/{id}", handleDeleteRequest).Methods("DELETE")
 
-	log.Fatal(http.ListenAndServe(":8080", myRouter))
+	corsMiddleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(myRouter)))
 
 }
 
@@ -91,10 +105,15 @@ func handleGetTasksRequest(rw http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(rw, "Error marshaling task: %v", err)
 		return
 	}
+	if IsEmptyList(tasks) {
+		rw.WriteHeader(http.StatusNotFound)
+		return
+	}
+
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	rw.Write(jsondata)
-	fmt.Print("Get request Handled successfully")
+	fmt.Print("Get request Handled  successfully")
 }
 
 func handleUpdateRequest(rw http.ResponseWriter, r *http.Request) {
@@ -153,4 +172,8 @@ func handleDeleteRequest(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 	fmt.Fprintf(rw, "Delete request Handled successfully")
 
+}
+
+func IsEmptyList(tasks []Task) bool {
+	return len(tasks) == 0
 }
