@@ -2,14 +2,19 @@ package service
 
 import (
 	"goList/types"
-	"log"
+	"goList/storage"
 )
 
-// reg user
-func registerUser(user types.User ) error{
-	
-	log.Println("addding new user ")
-	return nil
+type UserService struct {
+	s storage.UserStorage
 }
 
+func NewUserService(storage storage.UserStorage) *UserService {
+	return &UserService{
+		s: storage,
+	}
+}
 
+func (us *UserService) RegisterUser(user types.User) error {
+	return us.s.RegisterUser(user)
+}

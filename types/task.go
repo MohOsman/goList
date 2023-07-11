@@ -1,9 +1,10 @@
 package types
 
-type Task struct {
-	ID          int    `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Isdone      bool   `json:isdone`
-}
+import "go.mongodb.org/mongo-driver/bson/primitive"
 
+type Task struct {
+	ID          primitive.ObjectID `bson:"_id,omitempty"`
+	Title       string             `json:"title"`
+	Description string             `json:"description"`
+	Isdone      bool               `json:isdone`
+}

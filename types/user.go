@@ -1,7 +1,9 @@
 package types
 
-type User  struct {
-	ID int64 
-	Username string
-	Password string
+import "go.mongodb.org/mongo-driver/bson/primitive"
+
+type User struct {
+	ID       primitive.ObjectID `bson:"_id,omitempty"`
+	Username string             `json:"username"`
+	Password string             `json:"password"`
 }
