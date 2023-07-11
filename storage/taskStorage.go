@@ -8,7 +8,6 @@ import (
 type TaskStorage interface {
 	AddTask(task types.Task) error
 	FindTaskById(primitive.ObjectID) (*types.Task, error)
-	//DeleteTaskById(primitive.ObjectID) error
-	// TODO  look what is the best practice to update
+	
 
 }
