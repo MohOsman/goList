@@ -18,8 +18,8 @@ func NewTaskRepository(collection *mongo.Collection) *TaskRepository {
 	return &TaskRepository{taskColletion: collection}
 }
 
-func (t *TaskRepository) AddTask(task types.Task) error {
-	_, err := t.taskColletion.InsertOne(context.TODO(), task)
+func (ts *TaskRepository) AddTask(task types.Task) error {
+	_, err := ts.taskColletion.InsertOne(context.TODO(), task)
 	if err != nil {
 		log.Printf("Failed to insert user: %v", err)
 		return err
@@ -42,4 +42,48 @@ func (ts *TaskRepository) FindTaskById(id primitive.ObjectID) (*types.Task, erro
 	return &task, nil
 }
 
-//DeleteTaskById(int) error
+func (ts *TaskRepository) FindAll() ([]types.Task, error) {
+	var tasks []types.Task
+	cursor, err := ts.taskColletion.Find(context.TODO(), bson.M{})
+	if err != nil {
+		log.Print("Error while retrieving tasks: ", err)
+		return nil, err
+	}
+	defer cursor.Close(context.TODO())
+
+	for cursor.Next(context.TODO()) {
+		var task types.Task
+		if err := cursor.Decode(&task); err != nil {
+			log.Printf("Error decoding task: %v", err)
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+
+	if err := cursor.Err(); err != nil {
+		log.Printf("Error with the cursor: %v", err)
+		return nil, err
+	}
+
+	return tasks, nil
+}
+
+func (ts *TaskRepository) DeleteTaskById(id primitive.ObjectID) error {
+	filter := bson.M{"_id": id}
+	_, err := ts.taskColletion.DeleteOne(context.TODO(), filter)
+	if err != nil {
+		log.Printf("Error deleting task,%v ", err)
+		return err
+	}
+	return nil
+}
+
+func (ts *TaskRepository) UpdateTaskById(id primitive.ObjectID, task types.Task) error {
+	filter := bson.M{"_id": id}
+	_, err := ts.taskColletion.ReplaceOne(context.TODO(), filter, task)
+	if err != nil {
+		log.Printf("Error while replacing task %v", err)
+		return err
+	}
+	return nil
+}

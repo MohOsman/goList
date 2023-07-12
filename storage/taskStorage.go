@@ -7,7 +7,8 @@ import (
 
 type TaskStorage interface {
 	AddTask(task types.Task) error
-	FindTaskById(primitive.ObjectID) (*types.Task, error)
-	
-
+	FindTaskById(id primitive.ObjectID) (*types.Task, error)
+	FindAll() ([]types.Task, error)
+	DeleteTaskById(id primitive.ObjectID) error
+	UpdateTaskById(id primitive.ObjectID, task types.Task) error
 }

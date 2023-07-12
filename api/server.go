@@ -10,7 +10,6 @@ import (
 
 	"log"
 	"net/http"
-	"strconv"
 )
 
 type Server struct {
@@ -36,9 +35,9 @@ func (s *Server) Start() error {
 
 	myRouter.HandleFunc("/tasks", s.handlePostTask).Methods("POST")
 	myRouter.HandleFunc("/tasks/{id}", s.handleGetRequest).Methods("GET")
-	myRouter.HandleFunc("/tasks", handleGetTasksRequest).Methods("GET")
-	myRouter.HandleFunc("/tasks/{id}", handleUpdateRequest).Methods("PUT")
-	myRouter.HandleFunc("/tasks/{id}", handleDeleteRequest).Methods("DELETE")
+	myRouter.HandleFunc("/tasks", s.handleGetTasksRequest).Methods("GET")
+	myRouter.HandleFunc("/tasks/{id}", s.handleUpdateRequest).Methods("PUT")
+	myRouter.HandleFunc("/tasks/{id}", s.handleDeleteRequest).Methods("DELETE")
 	myRouter.HandleFunc("/register", s.handleRegisterUser).Methods("POST")
 
 	corsMiddleware := func(next http.Handler) http.Handler {
@@ -135,7 +134,14 @@ func (s *Server) handleGetRequest(rw http.ResponseWriter, r *http.Request) {
 	rw.Write(jsonData)
 }
 
-func handleGetTasksRequest(rw http.ResponseWriter, r *http.Request) {
+func (s *Server) handleGetTasksRequest(rw http.ResponseWriter, r *http.Request) {
+	tasks, err := s.ts.FindAll()
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Println(rw, "Error retreving tasks: %v", err)
+		return
+
+	}
 
 	jsondata, err := json.Marshal(tasks)
 	if err != nil {
@@ -143,6 +149,7 @@ func handleGetTasksRequest(rw http.ResponseWriter, r *http.Request) {
 		log.Println(rw, "Error marshaling task: %v", err)
 		return
 	}
+
 	if utils.IsEmptyList(tasks) {
 		rw.WriteHeader(http.StatusNotFound)
 		return
@@ -151,48 +158,54 @@ func handleGetTasksRequest(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	log.Println("Get request handled successfully ")
-	rw.Write(jsondata)
+	_, err = rw.Write(jsondata)
+	if err != nil {
+		log.Print("Error http Writing")
+		return
+	}
 }
 
-func handleUpdateRequest(rw http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	taskID, err := strconv.Atoi(idStr)
+func (s *Server) handleUpdateRequest(rw http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	taskID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Println(rw, "Invalid task ID: %v", err)
 		return
 	}
 	var task types.Task
-	err1 := json.NewDecoder(r.Body).Decode(&task)
-	if err1 != nil {
+	err = json.NewDecoder(r.Body).Decode(&task)
+	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Println(rw, "Error deoading payload: %w", err)
 		return
 	}
-	log.Print(taskID)
-
-	var value uint
-	for index, _ := range tasks {
-		value = uint(index)
-		break
+	err = s.ts.UpdateTaskById(taskID, task)
+	if err != nil {
+		log.Printf("Error while updating task %v", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
 	}
-	tasks[value] = task
 	rw.WriteHeader(http.StatusCreated)
 	log.Println("Put request Handled successfully")
 
 }
 
-func handleDeleteRequest(rw http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	test, err := strconv.Atoi(idStr)
+func (s *Server) handleDeleteRequest(rw http.ResponseWriter, r *http.Request) {
+	Id := mux.Vars(r)["id"]
+	taskId, err := primitive.ObjectIDFromHex(Id)
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Println(rw, "Invalid task ID: %v", err)
 		return
 	}
-	log.Print(test)
+	err = s.ts.DeleteById(taskId)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Println(rw, "Invalid task ID: %v", err)
+		return
+	}
 
 	rw.WriteHeader(http.StatusOK)
 }
