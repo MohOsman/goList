@@ -35,3 +35,30 @@ func (ts *TaskService) FindTaskById(id primitive.ObjectID) (*types.Task, error) 
 	}
 	return task, nil
 }
+func (ts *TaskService) FindAll() ([]types.Task, error) {
+	tasks, err := ts.taskStorage.FindAll()
+	if err != nil {
+		log.Printf("Service, Error while retreving tasks ", err)
+		return nil, err
+	}
+	return tasks, nil
+}
+
+func (ts *TaskService) DeleteById(id primitive.ObjectID) error {
+	err := ts.taskStorage.DeleteTaskById(id)
+	if err != nil {
+		log.Printf("%v", err)
+		return err
+	}
+	return nil
+
+}
+func (ts *TaskService) UpdateTaskById(id primitive.ObjectID, task types.Task) error {
+	err := ts.taskStorage.UpdateTaskById(id, task)
+	if err != nil {
+		log.Printf("%v", err)
+		return err
+	}
+	return nil
+
+}
