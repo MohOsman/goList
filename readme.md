@@ -1,4 +1,4 @@
 ### GOList ###
 Go todo web server application
-![example workflow](https://github.com/github/docs/actions/workflows/main.yml/badge.svg)
 
+[![Go](https://github.com/MohOsman/goList/actions/workflows/go.yml/badge.svg)](https://github.com/MohOsman/goList/actions/workflows/go.yml)
