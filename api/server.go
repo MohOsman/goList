@@ -18,10 +18,6 @@ type Server struct {
 	ts           service.TaskService
 }
 
-var tasks []types.Task
-
-var currentTaskID = 1 // Variable to track the current task ID
-
 func NewServer(lisntAddr string,
 	userService service.UserService,
 	taskService service.TaskService) *Server {
@@ -39,6 +35,7 @@ func (s *Server) Start() error {
 	myRouter.HandleFunc("/tasks/{id}", s.handleUpdateRequest).Methods("PUT")
 	myRouter.HandleFunc("/tasks/{id}", s.handleDeleteRequest).Methods("DELETE")
 	myRouter.HandleFunc("/register", s.handleRegisterUser).Methods("POST")
+	myRouter.HandleFunc("/login", s.handlelogin).Methods("POST")
 
 	corsMiddleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -59,6 +56,9 @@ func (s *Server) Start() error {
 
 }
 
+// users
+// my own router for users ?
+
 func (s *Server) handleRegisterUser(rw http.ResponseWriter, r *http.Request) {
 	var newuser types.User
 	err := json.NewDecoder(r.Body).Decode(&newuser)
@@ -67,21 +67,38 @@ func (s *Server) handleRegisterUser(rw http.ResponseWriter, r *http.Request) {
 		log.Println("Error deoading payload: %w", err)
 		return
 	}
-	user := s.userService1.RegisterUser(newuser)
-	createdUser, err := json.Marshal(user)
+	err = s.userService1.RegisterUser(newuser)
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		log.Println(rw, "Error marshaling task: %v", err)
+		rw.WriteHeader(http.StatusBadRequest)
+		log.Println("Username already exsit: %w", err)
 		return
 	}
 
 	rw.WriteHeader(http.StatusCreated)
-	rw.Header().Set("Content-Type", "application/json")
 	log.Println("user created Handled successfully")
-	rw.Write(createdUser)
 
 }
 
+func (s *Server) handlelogin(rw http.ResponseWriter, r *http.Request) {
+	var user types.User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		log.Println("Error decoding payload: %w", err)
+		return
+	}
+	username, err := s.userService1.Login(user)
+	if err != nil {
+		rw.WriteHeader(http.StatusForbidden)
+		log.Println("Wrong credentials", err)
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	log.Printf("Username with usernam: %v", *username)
+}
+
+// Tasks
 func (s *Server) handlePostTask(rw http.ResponseWriter, r *http.Request) {
 	var task types.Task
 	err := json.NewDecoder(r.Body).Decode(&task)
