@@ -121,6 +121,7 @@ func (s *Server) handlePostTask(rw http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("could not procces token %v", err)
 		http.Error(rw, "Unauthorized", http.StatusUnauthorized)
+		return
 
 	}
 	var task types.Task
@@ -135,6 +136,7 @@ func (s *Server) handlePostTask(rw http.ResponseWriter, r *http.Request) {
 	if err1 != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		log.Printf("Error saviong the database %w", err)
+		return
 	}
 
 	rw.WriteHeader(http.StatusCreated)
@@ -149,14 +151,24 @@ func (s *Server) handleGetRequest(rw http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("could not procces token %v", err)
 		http.Error(rw, "Unauthorized", http.StatusUnauthorized)
+		return
 
 	}
+	id := mux.Vars(r)["id"]
 
-	foundTask, err := s.ts.FindTaskByUsername(username)
+	taskID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		log.Println(rw, "Invalid task ID: %v", err)
+		return
+	}
+	foundTask, err := s.ts.FindTaskByUsername(username, taskID)
 	if err != nil {
 		rw.WriteHeader(http.StatusNotFound)
-		log.Println("Could not find task with id") // look how you can id  inside the log message
+		log.Printf("Could not find task with username %v", username)
+		return
 	}
+
 	jsonData, err := json.Marshal(foundTask)
 
 	if err != nil {
@@ -177,17 +189,17 @@ func (s *Server) handleGetTasksRequest(rw http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		log.Printf("could not procces token %v", err)
 		http.Error(rw, "Unauthorized", http.StatusUnauthorized)
+		return
 
 	}
 
 	tasks, err := s.ts.FindAllByUserName(username)
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
+		rw.WriteHeader(http.StatusNotFound)
 		log.Println(rw, "Error retreving tasks: %v", err)
 		return
 
 	}
-
 	jsondata, err := json.Marshal(tasks)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
@@ -211,6 +223,15 @@ func (s *Server) handleGetTasksRequest(rw http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleUpdateRequest(rw http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("Authorization")
+	username, err := authentication.ValidateAndExtractUsername(token)
+
+	if err != nil {
+		log.Printf("could not procces token %v", err)
+		http.Error(rw, "Unauthorized", http.StatusUnauthorized)
+		return
+
+	}
 	id := mux.Vars(r)["id"]
 
 	taskID, err := primitive.ObjectIDFromHex(id)
@@ -226,7 +247,7 @@ func (s *Server) handleUpdateRequest(rw http.ResponseWriter, r *http.Request) {
 		log.Println(rw, "Error deoading payload: %w", err)
 		return
 	}
-	err = s.ts.UpdateTaskById(taskID, task)
+	err = s.ts.UpdateTaskByUsername(username, taskID, task)
 	if err != nil {
 		log.Printf("Error while updating task %v", err)
 		rw.WriteHeader(http.StatusInternalServerError)
@@ -238,6 +259,15 @@ func (s *Server) handleUpdateRequest(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteRequest(rw http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("Authorization")
+	username, err := authentication.ValidateAndExtractUsername(token)
+
+	if err != nil {
+		log.Printf("could not procces token %v", err)
+		http.Error(rw, "Unauthorized", http.StatusUnauthorized)
+		return
+
+	}
 	Id := mux.Vars(r)["id"]
 	taskId, err := primitive.ObjectIDFromHex(Id)
 	if err != nil {
@@ -245,7 +275,7 @@ func (s *Server) handleDeleteRequest(rw http.ResponseWriter, r *http.Request) {
 		log.Println(rw, "Invalid task ID: %v", err)
 		return
 	}
-	err = s.ts.DeleteById(taskId)
+	err = s.ts.DeleteByUsername(username, taskId)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		log.Println(rw, "Invalid task ID: %v", err)
