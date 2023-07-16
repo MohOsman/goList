@@ -3,7 +3,7 @@ package authentication
 import (
 	"crypto/rand"
 	"errors"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 	"log"
 	"strings"
 	"time"
@@ -71,7 +71,7 @@ func ValidateAndExtractUsername(tokenString string) (string, error) {
 			log.Printf("Could not get secret key from cache")
 			return nil, err
 		}
-	
+
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
 		}

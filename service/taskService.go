@@ -19,12 +19,12 @@ func NewTaskService(storage storage.TaskStorage) *TaskService {
 }
 
 func (ts *TaskService) CreateTask(task types.Task, username string) error {
-	taskdao := types.TaskDAO{
-		ID: task.ID,
-		Title: task.Title,
+	taskdao := types.Task{
+		ID:          task.ID,
+		Title:       task.Title,
 		Description: task.Description,
-		Isdone: task.Isdone,
-		Username: username,
+		Isdone:      task.Isdone,
+		Username:    username,
 	}
 	err := ts.taskStorage.AddTask(taskdao)
 	if err != nil {
@@ -50,17 +50,17 @@ func (ts *TaskService) FindAll() ([]types.Task, error) {
 	}
 	return tasks, nil
 }
-func (ts *TaskService) FindTaskByUsername(username string) (*types.Task, error) {
-	taskDAO, err := ts.taskStorage.FindTaskByUsername(username)
+func (ts *TaskService) FindTaskByUsername(username string, id primitive.ObjectID) (*types.Task, error) {
+	taskDAO, err := ts.taskStorage.FindTaskByUsername(username, id)
 	if err != nil {
 		log.Printf("Could not find Task by id: %v", err)
 		return &types.Task{}, err
 	}
 	task := types.Task{
-		ID: taskDAO.ID,
-		Title: taskDAO.Title,
+		ID:          taskDAO.ID,
+		Title:       taskDAO.Title,
 		Description: taskDAO.Description,
-		Isdone: taskDAO.Isdone,
+		Isdone:      taskDAO.Isdone,
 	}
 	return &task, nil
 }
@@ -73,11 +73,11 @@ func (ts *TaskService) FindAllByUserName(username string) ([]types.Task, error) 
 	// Map list of type B to type A
 	for i, b := range tasks {
 		tasksDto[i] = types.Task{
-			ID:   b.ID,
-			Title: b.Title,
+			ID:          b.ID,
+			Title:       b.Title,
 			Description: b.Description,
-			Isdone: b.Isdone,
-			}
+			Isdone:      b.Isdone,
+		}
 	}
 	if err != nil {
 		log.Printf("Service, Error while retreving tasks ", err)
@@ -86,8 +86,8 @@ func (ts *TaskService) FindAllByUserName(username string) ([]types.Task, error) 
 	return tasksDto, nil
 }
 
-func (ts *TaskService) DeleteById(id primitive.ObjectID) error {
-	err := ts.taskStorage.DeleteTaskById(id)
+func (ts *TaskService) DeleteByUsername(username string, id primitive.ObjectID) error {
+	err := ts.taskStorage.DeleteTaskByUsername(username, id)
 	if err != nil {
 		log.Printf("%v", err)
 		return err
@@ -95,8 +95,8 @@ func (ts *TaskService) DeleteById(id primitive.ObjectID) error {
 	return nil
 
 }
-func (ts *TaskService) UpdateTaskById(id primitive.ObjectID, task types.Task) error {
-	err := ts.taskStorage.UpdateTaskById(id, task)
+func (ts *TaskService) UpdateTaskByUsername(username string, id primitive.ObjectID, task types.Task) error {
+	err := ts.taskStorage.UpdateTaskByUsername(username, id, task)
 	if err != nil {
 		log.Printf("%v", err)
 		return err
