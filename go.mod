@@ -3,10 +3,12 @@ module goList
 go 1.20
 
 require (
+	github.com/bluele/gcache v0.0.2
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gorilla/mux v1.8.0
 	go.mongodb.org/mongo-driver v1.12.0
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
-	golang.org/x/tools v0.1.12
+	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
 )
 
 require (
