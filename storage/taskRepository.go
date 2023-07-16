@@ -18,7 +18,7 @@ func NewTaskRepository(collection *mongo.Collection) *TaskRepository {
 	return &TaskRepository{taskColletion: collection}
 }
 
-func (ts *TaskRepository) AddTask(task types.Task) error {
+func (ts *TaskRepository) AddTask(task types.TaskDAO) error {
 	_, err := ts.taskColletion.InsertOne(context.TODO(), task)
 	if err != nil {
 		log.Printf("Failed to insert user: %v", err)
@@ -87,3 +87,42 @@ func (ts *TaskRepository) UpdateTaskById(id primitive.ObjectID, task types.Task)
 	}
 	return nil
 }
+
+func (ts *TaskRepository )FindTaskByUsername(username string) (*types.TaskDAO, error) {
+	filter := bson.M{"username": username}
+	var taskDao types.TaskDAO
+	err := ts.taskColletion.FindOne(context.TODO(), filter).Decode(&taskDao)
+	if err != nil {
+		log.Printf("Error while retrving user form database %v", err)
+		return nil, err
+	}
+	return &taskDao, err
+}
+
+func (ts *TaskRepository)FindAllByUsername(username string) ([]types.TaskDAO, error){
+	var tasks []types.TaskDAO
+	cursor, err := ts.taskColletion.Find(context.TODO(), bson.M{"username":username})
+	if err != nil {
+		log.Print("Error while retrieving tasks: ", err)
+		return nil, err
+	}
+	defer cursor.Close(context.TODO())
+
+	for cursor.Next(context.TODO()) {
+		var task types.TaskDAO
+		if err := cursor.Decode(&task); err != nil {
+			log.Printf("Error decoding task: %v", err)
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+
+	if err := cursor.Err(); err != nil {
+		log.Printf("Error with the cursor: %v", err)
+		return nil, err
+	}
+
+	return tasks, nil
+}
+
+

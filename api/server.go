@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"goList/authentication"
 	"goList/service"
 	"goList/types"
 	"goList/utils"
@@ -41,7 +42,8 @@ func (s *Server) Start() error {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
@@ -75,7 +77,7 @@ func (s *Server) handleRegisterUser(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	rw.WriteHeader(http.StatusCreated)
-	log.Println("user created Handled successfully")
+	log.Println("user created handled successfully")
 
 }
 
@@ -88,27 +90,48 @@ func (s *Server) handlelogin(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username, err := s.userService1.Login(user)
+
 	if err != nil {
 		rw.WriteHeader(http.StatusForbidden)
 		log.Println("Wrong credentials", err)
 		return
 	}
 
+	token, err := authentication.GenerateJWT(*username)
+	if err != nil {
+		log.Println("Error gernerating token: %w", err)
+		rw.WriteHeader(http.StatusForbidden)
+		return
+	}
+
 	rw.WriteHeader(http.StatusOK)
-	log.Printf("Username with usernam: %v", *username)
+	rw.Write([]byte(`{"token":"` + token + `"}`))
 }
 
 // Tasks
 func (s *Server) handlePostTask(rw http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("Authorization")
+	if token == "" {
+		log.Println("Authorization Token in not present in the request")
+		http.Error(rw, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	username, err := authentication.ValidateAndExtractUsername(token)
+	if err != nil {
+		log.Printf("could not procces token %v", err)
+		http.Error(rw, "Unauthorized", http.StatusUnauthorized)
+
+	}
 	var task types.Task
-	err := json.NewDecoder(r.Body).Decode(&task)
+	err = json.NewDecoder(r.Body).Decode(&task)
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Println("Error deoading payload: %w", err)
 		return
 	}
 
-	err1 := s.ts.CreateTask(task)
+	err1 := s.ts.CreateTask(task, username)
 	if err1 != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		log.Printf("Error saviong the database %w", err)
@@ -116,22 +139,20 @@ func (s *Server) handlePostTask(rw http.ResponseWriter, r *http.Request) {
 
 	rw.WriteHeader(http.StatusCreated)
 	rw.Header().Set("Content-Type", "application/json")
-	log.Println("Post request Handled successfully")
+	log.Println("Post request handled successfully")
 
 }
 
 func (s *Server) handleGetRequest(rw http.ResponseWriter, r *http.Request) {
-
-	taskID := mux.Vars(r)["id"]
-	// map with key id
-	objectID, err := primitive.ObjectIDFromHex(taskID)
+	token := r.Header.Get("Authorization")
+	username, err := authentication.ValidateAndExtractUsername(token)
 	if err != nil {
-		rw.WriteHeader(http.StatusBadRequest)
-		log.Println(rw, "Invalid task ID: %v", err)
-		return
+		log.Printf("could not procces token %v", err)
+		http.Error(rw, "Unauthorized", http.StatusUnauthorized)
+
 	}
 
-	foundTask, err := s.ts.FindTaskById(objectID)
+	foundTask, err := s.ts.FindTaskByUsername(username)
 	if err != nil {
 		rw.WriteHeader(http.StatusNotFound)
 		log.Println("Could not find task with id") // look how you can id  inside the log message
@@ -143,16 +164,23 @@ func (s *Server) handleGetRequest(rw http.ResponseWriter, r *http.Request) {
 		log.Println(rw, "Error marshaling task: %v", err)
 		return
 	}
-	log.Println(taskID)
 
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	log.Println("Get request Handled successfully")
+	log.Println("Get All tasks request handled successfully")
 	rw.Write(jsonData)
 }
 
 func (s *Server) handleGetTasksRequest(rw http.ResponseWriter, r *http.Request) {
-	tasks, err := s.ts.FindAll()
+	token := r.Header.Get("Authorization")
+	username, err := authentication.ValidateAndExtractUsername(token)
+	if err != nil {
+		log.Printf("could not procces token %v", err)
+		http.Error(rw, "Unauthorized", http.StatusUnauthorized)
+
+	}
+
+	tasks, err := s.ts.FindAllByUserName(username)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		log.Println(rw, "Error retreving tasks: %v", err)
@@ -174,7 +202,7 @@ func (s *Server) handleGetTasksRequest(rw http.ResponseWriter, r *http.Request) 
 
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	log.Println("Get request handled successfully ")
+	log.Println("Get All request handled successfully ")
 	_, err = rw.Write(jsondata)
 	if err != nil {
 		log.Print("Error http Writing")
@@ -205,7 +233,7 @@ func (s *Server) handleUpdateRequest(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rw.WriteHeader(http.StatusCreated)
-	log.Println("Put request Handled successfully")
+	log.Println("Put request handled successfully")
 
 }
 
